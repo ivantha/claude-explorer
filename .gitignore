@@ -1,0 +1,44 @@
+# Xcode build artifacts
+build/
+DerivedData/
+*.xcarchive
+
+# Xcode user-specific data
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+
+# Xcode workspace settings (shared scheme data should be committed separately if needed)
+*.xcworkspace/xcshareddata/swiftpm/
+*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+
+# Interface Builder
+*.storyboardc
+
+# Swift Package Manager
+.build/
+Package.resolved
+Packages/
+
+# CocoaPods (if used)
+Pods/
+
+# Carthage (if used)
+Carthage/Build/
+Carthage/Checkouts/
+
+# macOS system files
+.DS_Store
+*.swp
+*~
+._*
+
+# App logs
+logs/
+
+# Python (icon generation script)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
