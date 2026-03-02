@@ -9,6 +9,16 @@ struct ModelBreakdownView: View {
     }
 
     var body: some View {
+        if viewModel.isAPIMode {
+            // Per-model token data unavailable from API;
+            // model utilizations are shown in TokenBreakdownView instead
+            EmptyView()
+        } else {
+            localView
+        }
+    }
+
+    private var localView: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Per-Model Usage")
                 .font(.subheadline.bold())

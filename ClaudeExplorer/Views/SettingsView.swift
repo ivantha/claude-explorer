@@ -6,18 +6,41 @@ struct SettingsView: View {
     @State private var selectedPlan: PlanType = .max20
     @State private var refreshSeconds: Double = 30
     @State private var launchAtLogin: Bool = false
+    @State private var selectedDataMode: DataMode = .auto
 
     var body: some View {
         Form {
-            Section("Plan") {
-                Picker("Subscription Plan", selection: $selectedPlan) {
-                    ForEach(PlanType.allCases) { plan in
-                        Text("\(plan.rawValue) — \(plan.tokenLimit.formatted()) tokens/5h")
-                            .tag(plan)
+            Section("Data Source") {
+                Picker("Mode", selection: $selectedDataMode) {
+                    ForEach(DataMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
                     }
                 }
-                .onChange(of: selectedPlan) { _, newValue in
-                    viewModel.changePlan(newValue)
+                .onChange(of: selectedDataMode) { _, newValue in
+                    viewModel.changeDataMode(newValue)
+                }
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(credentialDotColor)
+                        .frame(width: 8, height: 8)
+                    Text(viewModel.credentialStatusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if selectedDataMode == .local {
+                Section("Plan") {
+                    Picker("Subscription Plan", selection: $selectedPlan) {
+                        ForEach(PlanType.allCases) { plan in
+                            Text("\(plan.rawValue) — \(plan.tokenLimit.formatted()) tokens/5h")
+                                .tag(plan)
+                        }
+                    }
+                    .onChange(of: selectedPlan) { _, newValue in
+                        viewModel.changePlan(newValue)
+                    }
                 }
             }
 
@@ -43,6 +66,16 @@ struct SettingsView: View {
         .onAppear {
             selectedPlan = viewModel.selectedPlan
             refreshSeconds = viewModel.refreshInterval
+            selectedDataMode = viewModel.dataMode
+        }
+    }
+
+    private var credentialDotColor: Color {
+        switch viewModel.credentialStatus {
+        case .available: return .green
+        case .expired: return .orange
+        case .missing, .apiError: return .red
+        case .unknown: return .gray
         }
     }
 

@@ -26,15 +26,29 @@ struct UsageHeaderView: View {
             }
             .frame(height: 12)
 
-            // Token count and limit
-            HStack {
-                Text("\(viewModel.snapshot.totalInputOutput.formatted()) tokens")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("\(viewModel.tokenLimitFormatted) limit (\(viewModel.selectedPlan.rawValue))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            // Subtitle: differs by mode
+            if viewModel.isAPIMode {
+                HStack {
+                    Text("5-hour utilization")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if let sub = viewModel.snapshot.subscriptionType {
+                        Text(sub.capitalized)
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                HStack {
+                    Text("\(viewModel.snapshot.totalInputOutput.formatted()) tokens")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(viewModel.tokenLimitFormatted) limit (\(viewModel.selectedPlan.rawValue))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             // Reset timer

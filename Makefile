@@ -19,6 +19,7 @@ build:
 
 install: build
 	@echo "Installing $(APP_NAME).app to $(INSTALL_DIR)..."
+	rm -rf "$(INSTALL_DIR)/$(APP_NAME).app"
 	cp -R "$(APP_BUNDLE)" "$(INSTALL_DIR)/$(APP_NAME).app"
 	@echo "Done. $(APP_NAME) is now available in Launchpad and Spotlight."
 

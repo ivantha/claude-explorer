@@ -9,6 +9,17 @@ struct PopoverView: View {
             HStack {
                 Text("Claude Explorer")
                     .font(.headline)
+
+                // Data source indicator
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(viewModel.isAPIMode ? .green : .blue)
+                        .frame(width: 6, height: 6)
+                    Text(viewModel.dataSourceLabel)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
                 Spacer()
                 Button(action: { Task { await viewModel.refresh() } }) {
                     Image(systemName: viewModel.isRefreshing ? "arrow.trianglehead.2.clockwise" : "arrow.clockwise")
@@ -31,8 +42,10 @@ struct PopoverView: View {
                         TokenBreakdownView(viewModel: viewModel)
                         Divider().padding(.horizontal)
                         CostAndBurnView(viewModel: viewModel)
-                        Divider().padding(.horizontal)
-                        ModelBreakdownView(viewModel: viewModel)
+                        if !viewModel.isAPIMode {
+                            Divider().padding(.horizontal)
+                            ModelBreakdownView(viewModel: viewModel)
+                        }
                     }
                     .padding(.vertical, 12)
                 }

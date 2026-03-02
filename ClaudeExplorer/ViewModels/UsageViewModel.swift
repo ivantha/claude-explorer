@@ -2,6 +2,22 @@ import Foundation
 import SwiftUI
 import Combine
 
+enum DataMode: String, CaseIterable, Identifiable, Sendable {
+    case auto = "Auto"
+    case api = "API Only"
+    case local = "Local Only"
+
+    var id: String { rawValue }
+}
+
+enum CredentialStatus: Sendable {
+    case unknown
+    case available
+    case expired
+    case missing
+    case apiError(String)
+}
+
 @MainActor
 @Observable
 final class UsageViewModel {
@@ -10,15 +26,19 @@ final class UsageViewModel {
     var hasData: Bool = false
     var isRefreshing: Bool = false
     var tick: UInt64 = 0
+    var credentialStatus: CredentialStatus = .unknown
 
-    // MARK: - Settings (persisted via AppStorage in views)
+    // MARK: - Settings (persisted via UserDefaults)
     var selectedPlan: PlanType = .max20
     var refreshInterval: TimeInterval = 30
+    var dataMode: DataMode = .auto
 
     // MARK: - Private
     private let reader = JSONLReader()
     private let analyzer = SessionAnalyzer()
     private let calculator = UsageCalculator()
+    private let credentialReader = CredentialReader()
+    private let apiFetcher = APIUsageFetcher()
     private var timer: Timer?
     private var displayTimer: Timer?
     private var isMonitoring = false
@@ -31,6 +51,10 @@ final class UsageViewModel {
         let interval = UserDefaults.standard.double(forKey: "refreshInterval")
         if interval > 0 {
             refreshInterval = interval
+        }
+        if let raw = UserDefaults.standard.string(forKey: "dataMode"),
+           let mode = DataMode(rawValue: raw) {
+            dataMode = mode
         }
     }
 
@@ -84,6 +108,27 @@ final class UsageViewModel {
         return "\(limit)"
     }
 
+    var isAPIMode: Bool {
+        snapshot.dataSource == .api
+    }
+
+    var dataSourceLabel: String {
+        switch snapshot.dataSource {
+        case .api: return "Live"
+        case .local: return "Local"
+        }
+    }
+
+    var credentialStatusText: String {
+        switch credentialStatus {
+        case .unknown: return "Checking..."
+        case .available: return "Connected"
+        case .expired: return "Token expired — run claude to refresh"
+        case .missing: return "No credentials found"
+        case .apiError(let msg): return msg
+        }
+    }
+
     // MARK: - Actions
 
     func startMonitoring() {
@@ -105,7 +150,6 @@ final class UsageViewModel {
     func changePlan(_ plan: PlanType) {
         selectedPlan = plan
         UserDefaults.standard.set(plan.rawValue, forKey: "selectedPlan")
-        // Recalculate with existing data
         recalculate()
     }
 
@@ -115,8 +159,69 @@ final class UsageViewModel {
         startTimer()
     }
 
+    func changeDataMode(_ mode: DataMode) {
+        dataMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: "dataMode")
+        Task { await refresh() }
+    }
+
     func refresh() async {
         isRefreshing = true
+
+        switch dataMode {
+        case .auto:
+            if await tryAPIRefresh() {
+                isRefreshing = false
+                return
+            }
+            await localRefresh()
+        case .api:
+            if await tryAPIRefresh() {
+                isRefreshing = false
+                return
+            }
+            // API-only mode: show no data on failure
+            snapshot = .empty
+            hasData = false
+        case .local:
+            await localRefresh()
+        }
+
+        isRefreshing = false
+    }
+
+    // MARK: - Private
+
+    private func tryAPIRefresh() async -> Bool {
+        let credentials: ClaudeCredentials
+        do {
+            credentials = try credentialReader.read()
+        } catch {
+            credentialStatus = .missing
+            return false
+        }
+
+        if credentials.isExpired {
+            credentialStatus = .expired
+            return false
+        }
+
+        do {
+            let response = try await apiFetcher.fetch(accessToken: credentials.accessToken)
+            snapshot = UsageSnapshot.fromAPI(response, credentials: credentials)
+            hasData = true
+            credentialStatus = .available
+            return true
+        } catch let error as APIUsageError {
+            credentialStatus = .apiError(error.localizedDescription)
+            return false
+        } catch {
+            credentialStatus = .apiError(error.localizedDescription)
+            return false
+        }
+    }
+
+    private func localRefresh() async {
         let cutoff = Date().addingTimeInterval(-5 * 60 * 60) // last 5 hours
         let entries = await reader.readEntries(since: cutoff)
         let blocks = analyzer.analyze(entries: entries)
@@ -128,10 +233,7 @@ final class UsageViewModel {
             snapshot = .empty
             hasData = false
         }
-        isRefreshing = false
     }
-
-    // MARK: - Private
 
     private func startTimer() {
         timer?.invalidate()
@@ -152,7 +254,6 @@ final class UsageViewModel {
     }
 
     private func recalculate() {
-        // Re-trigger a refresh to apply new plan
         Task { await refresh() }
     }
 

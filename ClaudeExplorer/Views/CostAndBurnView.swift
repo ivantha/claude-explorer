@@ -4,6 +4,45 @@ struct CostAndBurnView: View {
     let viewModel: UsageViewModel
 
     var body: some View {
+        if viewModel.isAPIMode {
+            apiView
+        } else {
+            localView
+        }
+    }
+
+    // MARK: - API Mode: Credential Status
+
+    private var apiView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Connection")
+                .font(.subheadline.bold())
+                .padding(.horizontal, 16)
+
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(credentialDotColor)
+                    .frame(width: 8, height: 8)
+                Text(viewModel.credentialStatusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private var credentialDotColor: Color {
+        switch viewModel.credentialStatus {
+        case .available: return .green
+        case .expired: return .orange
+        case .missing, .apiError: return .red
+        case .unknown: return .gray
+        }
+    }
+
+    // MARK: - Local Mode: Cost & Burn Rate
+
+    private var localView: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Session Stats")
                 .font(.subheadline.bold())
